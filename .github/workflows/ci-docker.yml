@@ -45,11 +45,15 @@ jobs:
           tar zxvf trivy_0.59.1_Linux-64bit.tar.gz
           sudo mv trivy /usr/local/bin/
 
-      # Étape 7: Scan de sécurité de l'image Backend
+      # Étape 7: Mettre à jour la base de données Trivy
+      - name: Update Trivy Database
+        run: trivy --refresh
+
+      # Étape 8: Scan de sécurité de l'image Backend
       - name: Scan Docker image for vulnerabilities
         run: trivy image ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
-      # Étape 8: Push du Backend
+      # Étape 9: Push du Backend
       - name: Push Backend Image
         uses: docker/build-push-action@v6
         with:
@@ -57,7 +61,7 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
           push: true
 
-      # Étape 9: Build et Push du Frontend avec Docker Buildx
+      # Étape 10: Build et Push du Frontend avec Docker Buildx
       - name: Build and Push Frontend
         uses: docker/build-push-action@v6
         with:

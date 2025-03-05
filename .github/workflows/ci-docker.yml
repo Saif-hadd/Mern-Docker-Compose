@@ -37,11 +37,17 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
           push: false  # Ne pas pousser l'image ici
 
-      # Étape 6: Scan de sécurité de l'image Backend
+      # Étape 6: Installer Trivy pour scanner l'image
+      - name: Install Trivy
+        run: |
+          curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.27.0/trivy_0.27.0_Linux-x86_64.deb -o trivy.deb
+          sudo dpkg -i trivy.deb
+
+      # Étape 7: Scan de sécurité de l'image Backend
       - name: Scan Docker image for vulnerabilities
         run: trivy image ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
-      # Étape 7: Push du Backend
+      # Étape 8: Push du Backend
       - name: Push Backend Image
         uses: docker/build-push-action@v6
         with:
@@ -49,7 +55,7 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
           push: true
 
-      # Étape 8: Build et Push du Frontend avec Docker Buildx
+      # Étape 9: Build et Push du Frontend avec Docker Buildx
       - name: Build and Push Frontend
         uses: docker/build-push-action@v6
         with:

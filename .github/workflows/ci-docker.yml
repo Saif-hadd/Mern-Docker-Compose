@@ -21,7 +21,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}  # Nom d'utilisateur Docker Hub
           password: ${{ secrets.DOCKER_PASSWORD }}  # Mot de passe Docker Hub
 
-      # Étape 3: Activer Buildx pour utiliser les fonctionnalités avancées
+      # Étape 3: Activer Docker Buildx
       - name: Set up Docker Buildx
         run: |
           docker buildx create --use

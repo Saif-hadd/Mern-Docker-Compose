@@ -44,3 +44,4 @@ jobs:
           context: ./mern/frontend  # Dossier du frontend
           push: true  # Pousser l'image sur Docker Hub
           tags: ${{ secrets.DOCKER_USERNAME }}/frontend:latest  # Utilisation correcte du tag
+ 

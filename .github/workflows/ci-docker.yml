@@ -1,4 +1,4 @@
-name: CI - Build & Push Docker Images
+name: CI - Build Docker Images
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4  # Vérifie que le code est cloné depuis le repo
 
-      # Étape 2: Connexion à Docker Hub
+      # Étape 2: Connexion à Docker Hub (facultatif ici si tu ne pushes pas encore)
       - name: Connexion à Docker Hub
         uses: docker/login-action@v3  # Connexion à Docker Hub via les secrets GitHub
         with:
@@ -26,12 +26,12 @@ jobs:
         run: |
           docker buildx create --use
 
-      # Étape 4: Build et Push Backend avec buildx
-      - name: Build et push Backend
+      # Étape 4: Build Backend avec buildx (sans push)
+      - name: Build Backend
         run: |
-          docker buildx build --tag ${{ secrets.DOCKER_USERNAME }}/backend:latest -f ./mern/backend/Dockerfile ./mern/backend --push
+          docker buildx build --tag ${{ secrets.DOCKER_USERNAME }}/backend:latest -f ./mern/backend/Dockerfile ./mern/backend
 
-      # Étape 5: Build et Push Frontend avec buildx
-      - name: Build et push Frontend
+      # Étape 5: Build Frontend avec buildx (sans push)
+      - name: Build Frontend
         run: |
-          docker buildx build --tag ${{ secrets.DOCKER_USERNAME }}/frontend:latest -f ./mern/frontend/Dockerfile ./mern/frontend --push
+          docker buildx build --tag ${{ secrets.DOCKER_USERNAME }}/frontend:latest -f ./mern/frontend/Dockerfile ./mern/frontend

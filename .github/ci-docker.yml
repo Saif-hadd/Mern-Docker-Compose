@@ -1,0 +1,34 @@
+name: CI - Build & Push Docker Images
+
+on:
+  push:
+    branches:
+      - main  # Déclencher uniquement sur la branche main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Utiliser un runner Ubuntu
+
+    steps:
+      # Étape 1: Récupérer le code source
+      - name: Checkout du code
+        uses: actions/checkout@v4  # Vérifie que le code est cloné depuis le repo
+
+      # Étape 2: Connexion à Docker Hub
+      - name: Connexion à Docker Hub
+        uses: docker/login-action@v3  # Connexion à Docker Hub via les secrets GitHub
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}  # Nom d'utilisateur Docker Hub
+          password: ${{ secrets.DOCKER_PASSWORD }}  # Mot de passe Docker Hub
+
+      # Étape 3: Build et Push Backend
+      - name: Build et push Backend
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:latest -f ./mern/backend/Dockerfile ./mern/backend
+          docker push ${{ secrets.DOCKER_USERNAME }}/backend:latest  # Push de l'image backend vers Docker Hub
+
+      # Étape 4: Build et Push Frontend
+      - name: Build et push Frontend
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/frontend:latest -f ./mern/frontend/Dockerfile ./mern/frontend
+          docker push ${{ secrets.DOCKER_USERNAME }}/frontend:latest  # Push de l'image frontend vers Docker Hub

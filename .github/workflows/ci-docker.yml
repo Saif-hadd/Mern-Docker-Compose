@@ -29,9 +29,9 @@ jobs:
       # Étape 4: Build Backend avec buildx (sans push)
       - name: Build Backend
         run: |
-          docker buildx build --tag ${{ secrets.DOCKER_USERNAME }}/backend:latest -f ./mern/backend/Dockerfile ./mern/backend
+          docker buildx build --tag ${{ secrets.DOCKER_USERNAME }}/backend:latest -f ./mern/backend/Dockerfile ./mern/backend .
 
       # Étape 5: Build Frontend avec buildx (sans push)
       - name: Build Frontend
         run: |
-          docker buildx build --tag ${{ secrets.DOCKER_USERNAME }}/frontend:latest -f ./mern/frontend/Dockerfile ./mern/frontend
+          docker buildx build --tag ${{ secrets.DOCKER_USERNAME }}/frontend:latest -f ./mern/frontend/Dockerfile ./mern/frontend .

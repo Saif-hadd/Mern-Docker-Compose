@@ -35,7 +35,7 @@ jobs:
         with:
           context: ./mern/backend  # Dossier du backend
           push: true  # Pousser l'image sur Docker Hub
-          tags: ${{ secrets.DOCKER_USERNAME }}/backend:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/backend:latest  # Utilisation correcte du tag
 
       # Étape 6: Build et Push Frontend avec Docker Buildx
       - name: Build and Push Frontend
@@ -43,4 +43,4 @@ jobs:
         with:
           context: ./mern/frontend  # Dossier du frontend
           push: true  # Pousser l'image sur Docker Hub
-          tags: ${{ secrets.DOCKER_USERNAME }}/frontend:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/frontend:latest  # Utilisation correcte du tag

@@ -3,7 +3,7 @@ name: CI - Build & Push Docker Images
 on:
   push:
     branches:
-      - main  # Déclenche ce workflow uniquement lors d'un push sur la branche main
+      - main  # Déclencher uniquement sur la branche main
 
 jobs:
   docker:
@@ -15,13 +15,13 @@ jobs:
         uses: actions/checkout@v4  # Vérifie que le code est cloné depuis le repo
 
       # Étape 2: Connexion à Docker Hub
-      - name: Login to Docker Hub
+      - name: Connexion à Docker Hub
         uses: docker/login-action@v3  # Connexion à Docker Hub via les secrets GitHub
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}  # Nom d'utilisateur Docker Hub
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}  # Mot de passe Docker Hub (pas un token)
+          username: ${{ secrets.DOCKER_USERNAME }}  # Nom d'utilisateur Docker Hub
+          password: ${{ secrets.DOCKER_PASSWORD }}  # Mot de passe Docker Hub
 
-      # Étape 3: Configurer QEMU (pour la compatibilité multi-plateforme)
+      # Étape 3: Configurer QEMU pour la compatibilité multi-plateforme
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -35,7 +35,7 @@ jobs:
         with:
           context: ./mern/backend  # Dossier du backend
           push: true  # Pousser l'image sur Docker Hub
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/backend:latest
 
       # Étape 6: Build et Push Frontend avec Docker Buildx
       - name: Build and Push Frontend
@@ -43,4 +43,4 @@ jobs:
         with:
           context: ./mern/frontend  # Dossier du frontend
           push: true  # Pousser l'image sur Docker Hub
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/frontend:latest

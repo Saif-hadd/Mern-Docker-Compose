@@ -40,7 +40,7 @@ jobs:
       # Étape 6: Installer Trivy pour scanner l'image
       - name: Install Trivy
         run: |
-          curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.27.0/trivy_0.27.0_Linux-x86_64.deb -o trivy.deb
+          curl -sfL https://github.com/aquasecurity/trivy/releases/download/v0.59.1/trivy_0.59.1_Linux-x86_64.deb -o trivy.deb
           sudo dpkg -i trivy.deb
 
       # Étape 7: Scan de sécurité de l'image Backend

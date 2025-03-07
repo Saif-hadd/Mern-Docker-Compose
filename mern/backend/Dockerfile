@@ -1,10 +1,10 @@
-FROM node:18.9.1
+FROM node:18-slim
 
 WORKDIR /app
 
 COPY package.json .
 
-RUN npm install
+RUN apt-get update && apt-get upgrade -y && apt-get clean && npm install
 
 COPY . .
 

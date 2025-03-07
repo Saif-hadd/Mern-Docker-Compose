@@ -66,3 +66,4 @@ jobs:
           context: ./mern/frontend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
+          

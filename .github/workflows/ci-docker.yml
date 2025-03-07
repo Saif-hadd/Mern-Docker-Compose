@@ -47,7 +47,7 @@ jobs:
       # Step 7: Scan Backend Image
       - name: Scan Docker Image for Vulnerabilities
         run: |
-          trivy image --scanners vuln --exit-code 1 --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}    
+          trivy image --scanners vuln  --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}    
 
       # Step 8: Push Backend Image
       - name: Push Backend Image

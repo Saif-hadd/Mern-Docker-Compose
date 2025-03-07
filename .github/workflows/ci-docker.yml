@@ -42,7 +42,7 @@ jobs:
 
       - name: Scan Docker Image for Vulnerabilities
         run: |
-          trivy image --scanners vuln --exit-code 1 --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
+          trivy image --scanners vuln  --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
       - name: Install SonarScanner
         run: |

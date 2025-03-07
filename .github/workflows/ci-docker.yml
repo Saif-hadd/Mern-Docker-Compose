@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Nécessaire pour SonarCloud afin d’avoir l’historique Git
+          fetch-depth: 0  # Nécessaire pour SonarCloud
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -52,7 +52,7 @@ jobs:
 
       - name: Run SonarCloud Analysis
         run: |
-          ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=mern-backend -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/backend -Dsonar.sourceEncoding=UTF-8
+          ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/backend -Dsonar.sourceEncoding=UTF-8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 

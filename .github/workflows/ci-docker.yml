@@ -3,68 +3,67 @@ name: CI - Build & Push Docker Images
 on:
   push:
     branches:
-      - main  # Déclencher uniquement sur la branche main
+      - main  # Trigger only on the main branch
 
 jobs:
   docker:
-    runs-on: ubuntu-latest  # Utiliser un runner Ubuntu
+    runs-on: ubuntu-latest  # Use an Ubuntu runner
 
     steps:
-      # Étape 1: Récupérer le code source
+      # Step 1: Checkout the source code
       - name: Checkout
-        uses: actions/checkout@v4  # Vérifie que le code est cloné depuis le repo
+        uses: actions/checkout@v4  # Ensure the code is cloned from the repo
 
-      # Étape 2: Connexion à Docker Hub
-      - name: Connexion à Docker Hub
-        uses: docker/login-action@v3  # Connexion à Docker Hub via les secrets GitHub
+      # Step 2: Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3  # Login to Docker Hub using GitHub secrets
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}  # Nom d'utilisateur Docker Hub
-          password: ${{ secrets.DOCKER_PASSWORD }}  # Mot de passe Docker Hub
+          username: ${{ secrets.DOCKER_USERNAME }}  # Docker Hub username
+          password: ${{ secrets.DOCKER_PASSWORD }}  # Docker Hub password
 
-      # Étape 3: Configurer QEMU pour la compatibilité multi-plateforme
+      # Step 3: Set up QEMU for multi-platform compatibility
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # Étape 4: Configurer Docker Buildx
+      # Step 4: Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Étape 5: Build du Backend (sans push)
+      # Step 5: Build the Backend (without push)
       - name: Build Backend Image
         uses: docker/build-push-action@v6
         with:
           context: ./mern/backend
           tags: ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
-          push: false  # Ne pas pousser l'image ici
+          push: false  # Do not push the image yet
 
-      # Étape 6: Installer Trivy via wget
+      # Step 6: Install Trivy via wget
       - name: Install Trivy
         run: |
           sudo apt-get update && sudo apt-get install -y wget
-          wget https://github.com/aquasecurity/trivy/releases/download/v0.59.1/trivy_0.59.1_Linux-64bit.tar.gz
-          tar zxvf trivy_0.59.1_Linux-64bit.tar.gz
+          wget https://github.com/aquasecurity/trivy/releases/download/v0.50.1/trivy_0.50.1_Linux-64bit.tar.gz
+          tar zxvf trivy_0.50.1_Linux-64bit.tar.gz
           sudo mv trivy /usr/local/bin/
+          trivy --version  # Verify installation
 
-      # Étape 7: Mettre à jour la base de données Trivy
-      - name: Update Trivy Database
-        run: trivy --refresh
+      # Step 7: Scan Backend Image for Vulnerabilities
+      - name: Scan Docker Image for Vulnerabilities
+        run: |
+          trivy image --exit-code 1 --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
+        continue-on-error: false  # Fail the build if high/critical vulnerabilities are found
 
-      # Étape 8: Scan de sécurité de l'image Backend
-      - name: Scan Docker image for vulnerabilities
-        run: trivy image ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
-
-      # Étape 9: Push du Backend
+      # Step 8: Push the Backend Image
       - name: Push Backend Image
         uses: docker/build-push-action@v6
         with:
           context: ./mern/backend
           tags: ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
-          push: true
+          push: true  # Push the image to Docker Hub
 
-      # Étape 10: Build et Push du Frontend avec Docker Buildx
+      # Step 9: Build and Push the Frontend with Docker Buildx
       - name: Build and Push Frontend
         uses: docker/build-push-action@v6
         with:
-          context: ./mern/frontend  # Dossier du frontend
-          push: true  # Pousser l'image sur Docker Hub
-          tags: ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}  # Utilisation dynamique du nom d'utilisateur
+          context: ./mern/frontend  # Frontend directory
+          push: true  # Push the image to Docker Hub
+          tags: ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}  # Dynamic username tagging

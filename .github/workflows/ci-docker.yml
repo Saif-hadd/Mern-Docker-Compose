@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Nécessaire pour SonarQube afin d’avoir l’historique Git
+          fetch-depth: 0  # Nécessaire pour SonarCloud afin d’avoir l’historique Git
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -42,7 +42,7 @@ jobs:
 
       - name: Scan Docker Image for Vulnerabilities
         run: |
-          trivy image --scanners vuln  --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
+          trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
       - name: Install SonarScanner
         run: |
@@ -50,15 +50,9 @@ jobs:
           unzip sonar-scanner-cli-5.0.1.3006-linux.zip
           mv sonar-scanner-5.0.1.3006-linux sonar-scanner
 
-      - name: Run SonarQube Analysis
+      - name: Run SonarCloud Analysis
         run: |
-          ./sonar-scanner/bin/sonar-scanner \
-            -Dsonar.projectKey=mern-backend \
-            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \  # Pour SonarCloud, ajoute ton organisation
-            -Dsonar.host.url=https://sonarcloud.io \  # URL pour SonarCloud, change si serveur perso
-            -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
-            -Dsonar.sources=./mern/backend \
-            -Dsonar.sourceEncoding=UTF-8
+          ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=mern-backend -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/backend -Dsonar.sourceEncoding=UTF-8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 

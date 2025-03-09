@@ -28,12 +28,22 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Commenter sur la PR avec les problèmes de Snyk
+      # Installer jq pour analyser les résultats Snyk
+      - name: Install jq
+        run: sudo apt-get install jq
+
+      # Commenter sur PR avec les résultats Snyk
       - name: Comment on PR with Snyk issues
-        uses: snyk/actions/comment-on-pr@v1
-        with:
-          snyk-token: ${{ secrets.SNYK_TOKEN }}
-          target-branch: main
+        run: |
+          PR_COMMENT="Snyk Security Scan Report: \n\n"
+          snyk test --all-projects --json | jq -r '.issues[] | "- \(.title) (\(.severity))\n  - \(.url)"' | while read -r issue; do
+            PR_COMMENT+="$issue\n"
+          done
+          curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -d "{\"body\": \"$PR_COMMENT\"}" \
+               "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       # Exécution de l'analyse de sécurité avec Snyk (Backend)
       - name: Run Snyk Security Scan (Backend)

@@ -15,23 +15,21 @@ jobs:
         with:
           fetch-depth: 0  # Nécessaire pour SonarCloud
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Install Snyk
+        run: npm install -g snyk
 
       # Backend Build & Scan
       - name: Build and Load Backend Image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }} ./mern/backend
           docker images
+
+      - name: Run Snyk Security Scan (Backend)
+        run: |
+          cd mern/backend
+          snyk test --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Install Trivy
         run: |
@@ -66,6 +64,13 @@ jobs:
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }} ./mern/frontend
           docker images
+
+      - name: Run Snyk Security Scan (Frontend)
+        run: |
+          cd mern/frontend
+          snyk test --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Scan Frontend Docker Image for Vulnerabilities
         run: |

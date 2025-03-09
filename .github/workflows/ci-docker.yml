@@ -24,12 +24,15 @@ jobs:
           set -e  # Exit on any error
           mkdir -p dependency-check && cd dependency-check
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
-          unzip dependency-check-9.0.9-release.zip
-          ls -la  # Debug: List contents of dependency-check directory
+          unzip dependency-check-9.0.9-release.zip  # Extracts into dependency-check/dependency-check/
+          ls -la  # Debug: List contents after unzip
+          cd dependency-check  # Move into the extracted dependency-check directory
           chmod +x dependency-check.sh  # Ensure script is executable
           ./dependency-check.sh --version  # Verify installation
-          cd ..  # Return to root directory
-          ls -la  # Debug: Confirm dependency-check directory exists in root
+          cd ../..  # Return to repository root
+          mv dependency-check/dependency-check/* dependency-check/  # Move contents up one level
+          rm -rf dependency-check/dependency-check  # Clean up nested directory
+          ls -la dependency-check/  # Debug: Confirm final structure
 
       # Debug Working Directory Before Running Scans
       - name: Debug Directory Structure

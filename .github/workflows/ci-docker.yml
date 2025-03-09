@@ -25,6 +25,7 @@ jobs:
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
           unzip dependency-check-9.0.9-release.zip
           ./dependency-check/bin/dependency-check.sh --version  # Verify installation
+          cd ..  # Return to root directory
 
       # Run OWASP Dependency-Check for Backend
       - name: Run OWASP Dependency-Check (Backend)
@@ -45,7 +46,7 @@ jobs:
             backend-report.html
             frontend-report.html
 
-      # Install Snyk CLI (if still using Snyk alongside)
+      # Install Snyk CLI
       - name: Install Snyk CLI
         run: npm install -g snyk
 

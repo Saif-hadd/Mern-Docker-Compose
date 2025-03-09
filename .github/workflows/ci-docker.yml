@@ -24,35 +24,51 @@ jobs:
 
       # Tester Snyk dans la PR
       - name: Test Snyk in Pull Request
+        if: github.event_name == 'pull_request'
         run: snyk monitor --all-projects
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       # Installer jq pour analyser les résultats Snyk
       - name: Install jq
-        run: sudo apt-get install jq
+        run: sudo apt-get install -y jq
 
       # Commenter sur PR avec les résultats Snyk
       - name: Comment on PR with Snyk issues
+        if: github.event_name == 'pull_request'
         run: |
           PR_COMMENT="Snyk Security Scan Report: \n\n"
           
-          # Test Snyk et récupération des résultats
-          snyk test --all-projects --json | jq -r '.issues[]? | "- \(.title) (\(.severity))\n  - \(.url)"' | while read -r issue; do
-            PR_COMMENT+="$issue\n"
-          done
-
-          # Affichage du contenu du commentaire pour debug
-          echo "Comment content: $PR_COMMENT"  # Debug print to check the comment content
-
-          # Commentaire sur la PR via l'API GitHub
-          curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-               -d "{\"body\": \"$PR_COMMENT\"}" \
-               "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+          # Run snyk test and save JSON output
+          snyk test --all-projects --json > snyk-results.json || true
+          
+          # Debug: Print raw JSON
+          echo "Snyk JSON output:"
+          cat snyk-results.json
+          
+          # Parse vulnerabilities
+          ISSUES=$(jq -r '.[] | .vulnerabilities[]? | "- \(.name) (\(.severity))\n  - \(.packageManager) package: \(.packageName)@\(.version)\n  - More info: \(.url)"' snyk-results.json || echo "No vulnerabilities found")
+          
+          # Append issues to comment
+          if [ -n "$ISSUES" ]; then
+            PR_COMMENT+="$ISSUES"
+          else
+            PR_COMMENT+="No vulnerabilities detected."
+          fi
+          
+          # Debug: Print final comment
+          echo "Comment content: $PR_COMMENT"
+          
+          # Post comment to PR
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -d "{\"body\": \"${PR_COMMENT}\"}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments"
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Exécution de l'analyse de sécurité avec Snyk (Backend)
+      # Backend Security Scans and Fixes
       - name: Run Snyk Security Scan (Backend)
         run: |
           cd mern/backend
@@ -60,31 +76,13 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Exécution de l'analyse de sécurité avec Snyk (Frontend)
-      - name: Run Snyk Security Scan (Frontend)
-        run: |
-          cd mern/frontend
-          snyk test --all-projects
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      # Correction des vulnérabilités avec Snyk (Backend)
       - name: Fix vulnerabilities with Snyk (Backend)
         run: |
           cd mern/backend
-          snyk protect
+          snyk protect || true  # Continue even if no fixes are applied
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Correction des vulnérabilités avec Snyk (Frontend)
-      - name: Fix vulnerabilities with Snyk (Frontend)
-        run: |
-          cd mern/frontend
-          snyk protect
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      # Surveillance avec Snyk (Backend)
       - name: Monitor with Snyk (Backend)
         run: |
           cd mern/backend
@@ -92,7 +90,21 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Surveillance avec Snyk (Frontend)
+      # Frontend Security Scans and Fixes
+      - name: Run Snyk Security Scan (Frontend)
+        run: |
+          cd mern/frontend
+          snyk test --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Fix vulnerabilities with Snyk (Frontend)
+        run: |
+          cd mern/frontend
+          snyk protect || true  # Continue even if no fixes are applied
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
       - name: Monitor with Snyk (Frontend)
         run: |
           cd mern/frontend
@@ -100,6 +112,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
+      # Docker Build and Push
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -118,7 +131,6 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }} ./mern/backend
           docker images
 
-      # Installation de Trivy
       - name: Install Trivy
         run: |
           sudo apt-get update && sudo apt-get install -y wget
@@ -127,26 +139,22 @@ jobs:
           sudo mv trivy /usr/local/bin/
           trivy --version
 
-      # Scan de l'image Docker Backend pour les vulnérabilités
       - name: Scan Backend Docker Image for Vulnerabilities
         run: |
           trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
-      # Installation de SonarScanner
       - name: Install SonarScanner
         run: |
           wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
           unzip sonar-scanner-cli-5.0.1.3006-linux.zip
           mv sonar-scanner-5.0.1.3006-linux sonar-scanner
 
-      # Exécution de l'analyse SonarCloud pour le Backend
       - name: Run SonarCloud Analysis for Backend
         run: |
           ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/backend -Dsonar.sourceEncoding=UTF-8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      # Push de l'image Backend
       - name: Push Backend Image
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
@@ -157,19 +165,16 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }} ./mern/frontend
           docker images
 
-      # Scan de l'image Docker Frontend pour les vulnérabilités
       - name: Scan Frontend Docker Image for Vulnerabilities
         run: |
           trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
 
-      # Exécution de l'analyse SonarCloud pour le Frontend
       - name: Run SonarCloud Analysis for Frontend
         run: |
           ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/frontend -Dsonar.sourceEncoding=UTF-8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      # Push de l'image Frontend
       - name: Push Frontend Image
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}

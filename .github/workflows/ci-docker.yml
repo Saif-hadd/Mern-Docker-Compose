@@ -27,6 +27,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Backend Build & Scan
       - name: Build and Load Backend Image
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }} ./mern/backend
@@ -40,7 +41,7 @@ jobs:
           sudo mv trivy /usr/local/bin/
           trivy --version
 
-      - name: Scan Docker Image for Vulnerabilities
+      - name: Scan Backend Docker Image for Vulnerabilities
         run: |
           trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
@@ -50,7 +51,7 @@ jobs:
           unzip sonar-scanner-cli-5.0.1.3006-linux.zip
           mv sonar-scanner-5.0.1.3006-linux sonar-scanner
 
-      - name: Run SonarCloud Analysis
+      - name: Run SonarCloud Analysis for Backend
         run: |
           ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/backend -Dsonar.sourceEncoding=UTF-8
         env:
@@ -60,18 +61,31 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
-      - name: Build and Push Frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./mern/frontend
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
+      # Frontend Build & Scan
+      - name: Build and Load Frontend Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }} ./mern/frontend
+          docker images
 
-      # Reporting and Notifications Section
+      - name: Scan Frontend Docker Image for Vulnerabilities
+        run: |
+          trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
+
+      - name: Run SonarCloud Analysis for Frontend
+        run: |
+          ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/frontend -Dsonar.sourceEncoding=UTF-8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Push Frontend Image
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
+
+      # Reporting and Notifications
       - name: Notify Slack on Success
         if: success()
         run: |
-          curl -X POST -H 'Content-type: application/json' --data '{"text":"Build succeeded for commit ${{ github.sha }}! Images pushed to Docker Hub."}' ${{ secrets.SLACK_WEBHOOK_URL }}
+          curl -X POST -H 'Content-type: application/json' --data '{"text":"Build succeeded for commit ${{ github.sha }}! Backend & Frontend images pushed to Docker Hub."}' ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Notify Slack on Failure
         if: failure()

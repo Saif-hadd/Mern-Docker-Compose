@@ -35,19 +35,19 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Fix vulnerabilities with Snyk (Backend)
+      # Fix vulnerabilities with Snyk (Backend) using protect
       - name: Fix vulnerabilities with Snyk (Backend)
         run: |
           cd mern/backend
-          snyk wizard
+          snyk protect
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Fix vulnerabilities with Snyk (Frontend)
+      # Fix vulnerabilities with Snyk (Frontend) using protect
       - name: Fix vulnerabilities with Snyk (Frontend)
         run: |
           cd mern/frontend
-          snyk wizard
+          snyk protect
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 

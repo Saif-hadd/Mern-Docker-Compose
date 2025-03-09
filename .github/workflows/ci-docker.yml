@@ -21,13 +21,13 @@ jobs:
       # Install OWASP Dependency-Check with Debugging
       - name: Install OWASP Dependency-Check
         run: |
+          set -e  # Exit on any error
           mkdir -p dependency-check && cd dependency-check
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
           unzip dependency-check-9.0.9-release.zip
           ls -la  # Debug: List contents of dependency-check directory
-          ls -la dependency-check/bin/  # Debug: List contents of bin directory
-          chmod +x dependency-check/bin/dependency-check.sh  # Ensure script is executable
-          ./dependency-check/bin/dependency-check.sh --version  # Verify installation
+          chmod +x dependency-check.sh  # Ensure script is executable
+          ./dependency-check.sh --version  # Verify installation
           cd ..  # Return to root directory
           ls -la  # Debug: Confirm dependency-check directory exists in root
 
@@ -36,17 +36,17 @@ jobs:
         run: |
           pwd  # Print current working directory
           ls -la  # List contents of current directory
-          ls -la dependency-check/bin/  # Confirm script exists
+          ls -la dependency-check/  # Confirm script exists
 
       # Run OWASP Dependency-Check for Backend
       - name: Run OWASP Dependency-Check (Backend)
         run: |
-          ./dependency-check/bin/dependency-check.sh --scan ./mern/backend --format HTML --out backend-report.html
+          ./dependency-check/dependency-check.sh --scan ./mern/backend --format HTML --out backend-report.html
 
       # Run OWASP Dependency-Check for Frontend
       - name: Run OWASP Dependency-Check (Frontend)
         run: |
-          ./dependency-check/bin/dependency-check.sh --scan ./mern/frontend --format HTML --out frontend-report.html
+          ./dependency-check/dependency-check.sh --scan ./mern/frontend --format HTML --out frontend-report.html
 
       # Upload Dependency-Check Reports as Artifacts
       - name: Upload Dependency-Check Reports

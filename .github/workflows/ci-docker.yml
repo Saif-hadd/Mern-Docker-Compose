@@ -22,7 +22,8 @@ jobs:
       - name: Install OWASP Dependency-Check
         run: |
           set -e  # Exit on any error
-          mkdir -p dependency-check && cd dependency-check
+          mkdir -p dependency-check
+          cd dependency-check
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
           unzip dependency-check-9.0.9-release.zip  # Extracts into dependency-check/dependency-check/
           ls -la  # Debug: List contents after unzip
@@ -47,7 +48,7 @@ jobs:
         run: |
           ./dependency-check/bin/dependency-check.sh --scan ./mern/backend --format HTML --out backend-report.html
 
-      # Run OWASP Dependency-Check for Frontend
+      # Run OWASP Dependency-Check (Frontend)
       - name: Run OWASP Dependency-Check (Frontend)
         run: |
           ./dependency-check/bin/dependency-check.sh --scan ./mern/frontend --format HTML --out frontend-report.html

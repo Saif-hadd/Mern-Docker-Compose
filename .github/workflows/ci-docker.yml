@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   docker:
@@ -15,11 +18,24 @@ jobs:
         with:
           fetch-depth: 0  # Nécessaire pour SonarCloud
 
-      # Ajouter l'installation de Snyk ici
-      - name: Install Snyk
+      # Installer Snyk CLI
+      - name: Install Snyk CLI
         run: npm install -g snyk
 
-      # Run Snyk Security Scan (Backend)
+      # Tester Snyk dans la PR
+      - name: Test Snyk in Pull Request
+        run: snyk monitor --all-projects
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # Commenter sur la PR avec les problèmes de Snyk
+      - name: Comment on PR with Snyk issues
+        uses: snyk/actions/comment-on-pr@v1
+        with:
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          target-branch: main
+
+      # Exécution de l'analyse de sécurité avec Snyk (Backend)
       - name: Run Snyk Security Scan (Backend)
         run: |
           cd mern/backend
@@ -27,7 +43,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Run Snyk Security Scan (Frontend)
+      # Exécution de l'analyse de sécurité avec Snyk (Frontend)
       - name: Run Snyk Security Scan (Frontend)
         run: |
           cd mern/frontend
@@ -35,7 +51,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Fix vulnerabilities with Snyk (Backend) using protect
+      # Correction des vulnérabilités avec Snyk (Backend)
       - name: Fix vulnerabilities with Snyk (Backend)
         run: |
           cd mern/backend
@@ -43,7 +59,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Fix vulnerabilities with Snyk (Frontend) using protect
+      # Correction des vulnérabilités avec Snyk (Frontend)
       - name: Fix vulnerabilities with Snyk (Frontend)
         run: |
           cd mern/frontend
@@ -51,7 +67,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Monitor with Snyk (Backend)
+      # Surveillance avec Snyk (Backend)
       - name: Monitor with Snyk (Backend)
         run: |
           cd mern/backend
@@ -59,7 +75,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Monitor with Snyk (Frontend)
+      # Surveillance avec Snyk (Frontend)
       - name: Monitor with Snyk (Frontend)
         run: |
           cd mern/frontend
@@ -85,6 +101,7 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }} ./mern/backend
           docker images
 
+      # Installation de Trivy
       - name: Install Trivy
         run: |
           sudo apt-get update && sudo apt-get install -y wget
@@ -93,22 +110,26 @@ jobs:
           sudo mv trivy /usr/local/bin/
           trivy --version
 
+      # Scan de l'image Docker Backend pour les vulnérabilités
       - name: Scan Backend Docker Image for Vulnerabilities
         run: |
           trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
+      # Installation de SonarScanner
       - name: Install SonarScanner
         run: |
           wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
           unzip sonar-scanner-cli-5.0.1.3006-linux.zip
           mv sonar-scanner-5.0.1.3006-linux sonar-scanner
 
+      # Exécution de l'analyse SonarCloud pour le Backend
       - name: Run SonarCloud Analysis for Backend
         run: |
           ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/backend -Dsonar.sourceEncoding=UTF-8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+      # Push de l'image Backend
       - name: Push Backend Image
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
@@ -119,16 +140,19 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }} ./mern/frontend
           docker images
 
+      # Scan de l'image Docker Frontend pour les vulnérabilités
       - name: Scan Frontend Docker Image for Vulnerabilities
         run: |
           trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
 
+      # Exécution de l'analyse SonarCloud pour le Frontend
       - name: Run SonarCloud Analysis for Frontend
         run: |
           ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/frontend -Dsonar.sourceEncoding=UTF-8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+      # Push de l'image Frontend
       - name: Push Frontend Image
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}

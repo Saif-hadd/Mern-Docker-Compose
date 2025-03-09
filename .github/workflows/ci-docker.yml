@@ -66,4 +66,14 @@ jobs:
           context: ./mern/frontend
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
-          
+
+      # Reporting and Notifications Section
+      - name: Notify Slack on Success
+        if: success()
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{"text":"Build succeeded for commit ${{ github.sha }}! Images pushed to Docker Hub."}' ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack on Failure
+        if: failure()
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{"text":"Build failed for commit ${{ github.sha }}! Check the logs for details."}' ${{ secrets.SLACK_WEBHOOK_URL }}

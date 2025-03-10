@@ -38,7 +38,10 @@ jobs:
             --format "ALL" \
             --out "dependency-check-report" \
             --failOnCVSS 7 \
-            --enableExperimental
+            --enableExperimental \
+            --nvdApiKey "${{ secrets.NVD_API_KEY }}"
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       # Installer Snyk CLI avec sécurisation
       - name: Install Snyk CLI

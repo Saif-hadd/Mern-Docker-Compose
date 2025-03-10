@@ -23,25 +23,33 @@ jobs:
           fetch-depth: 0
 
       # OWASP Dependency-Check
-      - name: Setup OWASP Dependency-Check
+      - name: Install OWASP Dependency-Check
         run: |
-          wget -q https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
-          unzip -q dependency-check-9.0.9-release.zip
-          sudo mv dependency-check /opt/
+          wget https://github.com/jeremylong/DependencyCheck/releases/download/v8.4.0/dependency-check-8.4.0-release.zip
+          unzip dependency-check-8.4.0-release.zip
+          sudo mv dependency-check /usr/local/bin/
 
-      - name: Run OWASP Dependency-Check
+      - name: Run OWASP Dependency-Check on Backend
         run: |
-          mkdir -p dependency-check-report
-          /opt/dependency-check/bin/dependency-check.sh \
-            --project "MERN Project" \
-            --scan "./mern/" \
-            --format "ALL" \
-            --out "dependency-check-report" \
-            --failOnCVSS 7 \
-            --enableExperimental \
-            --nvdApiKey "${{ secrets.NVD_API_KEY }}"
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          /usr/local/bin/dependency-check/bin/dependency-check.sh \
+            --project "MERN Backend" \
+            --scan ./mern/backend \
+            --format HTML \
+            --out dependency-check-report-backend.html
+
+      - name: Run OWASP Dependency-Check on Frontend
+        run: |
+          /usr/local/bin/dependency-check/bin/dependency-check.sh \
+            --project "MERN Frontend" \
+            --scan ./mern/frontend \
+            --format HTML \
+            --out dependency-check-report-frontend.html
+
+      - name: Upload OWASP Dependency-Check Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: OWASP-Dependency-Check-Reports
+          path: dependency-check-report-*.html
 
       # Installer Snyk CLI avec sécurisation
       - name: Install Snyk CLI
@@ -247,5 +255,5 @@ jobs:
         with:
           name: security-reports
           path: |
-            dependency-check-report/*
-            snyk-results.json    
+            dependency-check-report-*.html
+            snyk-results.json

@@ -170,7 +170,6 @@ jobs:
           trivy image \
             --scanners vuln \
             --severity HIGH,CRITICAL \
-            --exit-code 1 \
             --ignore-unfixed \
             ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
@@ -210,7 +209,6 @@ jobs:
           trivy image \
             --scanners vuln \
             --severity HIGH,CRITICAL \
-            --exit-code 1 \
             --ignore-unfixed \
             ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
 

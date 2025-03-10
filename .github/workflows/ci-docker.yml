@@ -18,80 +18,48 @@ jobs:
         with:
           fetch-depth: 0  # Nécessaire pour SonarCloud
 
-      # Install OWASP Dependency-Check with Debugging
-      - name: Install OWASP Dependency-Check
-        run: |
-          set -e  # Exit on any error
-          mkdir -p dependency-check
-          cd dependency-check
-          wget https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
-          unzip dependency-check-9.0.9-release.zip  # Extracts into dependency-check/dependency-check/
-          ls -la  # Debug: List contents after unzip
-          cd dependency-check  # Move into the extracted directory
-          ls -la  # Debug: List contents of extracted dependency-check/
-          ls -la bin/  # Debug: List contents of bin/
-          chmod +x bin/dependency-check.sh  # Ensure script is executable
-          ./bin/dependency-check.sh --version  # Verify installation
-          cd ../..  # Return to repository root
-          ls -la dependency-check/  # Debug: Confirm final structure
-
-      # Debug Working Directory Before Running Scans
-      - name: Debug Directory Structure
-        run: |
-          pwd  # Print current working directory
-          ls -la  # List contents of current directory
-          ls -la dependency-check/  # Confirm directory exists
-          ls -la dependency-check/bin/  # Confirm script exists
-
-      # Run OWASP Dependency-Check for Backend
-      - name: Run OWASP Dependency-Check (Backend)
-        run: |
-          ./dependency-check/bin/dependency-check.sh --scan ./mern/backend --format HTML --out backend-report.html
-
-      # Run OWASP Dependency-Check (Frontend)
-      - name: Run OWASP Dependency-Check (Frontend)
-        run: |
-          ./dependency-check/bin/dependency-check.sh --scan ./mern/frontend --format HTML --out frontend-report.html
-
-      # Upload Dependency-Check Reports as Artifacts
-      - name: Upload Dependency-Check Reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-reports
-          path: |
-            backend-report.html
-            frontend-report.html
-
-      # Install Snyk CLI
+      # Installer Snyk CLI
       - name: Install Snyk CLI
         run: npm install -g snyk
 
-      # Test Snyk in Pull Request
+      # Tester Snyk dans la PR
       - name: Test Snyk in Pull Request
         if: github.event_name == 'pull_request'
         run: snyk monitor --all-projects
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Install jq for Snyk PR comments
+      # Installer jq pour analyser les résultats Snyk
       - name: Install jq
         run: sudo apt-get install -y jq
 
-      # Comment on PR with Snyk issues
+      # Commenter sur PR avec les résultats Snyk
       - name: Comment on PR with Snyk issues
         if: github.event_name == 'pull_request'
         run: |
           PR_COMMENT="Snyk Security Scan Report: \n\n"
+          
+          # Run snyk test and save JSON output
           snyk test --all-projects --json > snyk-results.json || true
+          
+          # Debug: Print raw JSON
           echo "Snyk JSON output:"
           cat snyk-results.json
+          
+          # Parse vulnerabilities
           ISSUES=$(jq -r '.[] | .vulnerabilities[]? | "- \(.name) (\(.severity))\n  - \(.packageManager) package: \(.packageName)@\(.version)\n  - More info: \(.url)"' snyk-results.json || echo "No vulnerabilities found")
+          
+          # Append issues to comment
           if [ -n "$ISSUES" ]; then
             PR_COMMENT+="$ISSUES"
           else
             PR_COMMENT+="No vulnerabilities detected."
           fi
+          
+          # Debug: Print final comment
           echo "Comment content: $PR_COMMENT"
+          
+          # Post comment to PR
           curl -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
@@ -100,7 +68,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Backend Security Scans and Fixes (Snyk)
+      # Backend Security Scans and Fixes
       - name: Run Snyk Security Scan (Backend)
         run: |
           cd mern/backend
@@ -111,7 +79,7 @@ jobs:
       - name: Fix vulnerabilities with Snyk (Backend)
         run: |
           cd mern/backend
-          snyk protect || true
+          snyk protect || true  # Continue even if no fixes are applied
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -122,7 +90,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Frontend Security Scans and Fixes (Snyk)
+      # Frontend Security Scans and Fixes
       - name: Run Snyk Security Scan (Frontend)
         run: |
           cd mern/frontend
@@ -133,7 +101,7 @@ jobs:
       - name: Fix vulnerabilities with Snyk (Frontend)
         run: |
           cd mern/frontend
-          snyk protect || true
+          snyk protect || true  # Continue even if no fixes are applied
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 

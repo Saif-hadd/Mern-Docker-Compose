@@ -11,7 +11,6 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
-    # Ajout de permissions OWASP (principe du moindre privilège)
     permissions:
       contents: read
       pull-requests: write
@@ -32,12 +31,14 @@ jobs:
 
       - name: Run OWASP Dependency-Check
         run: |
+          mkdir -p dependency-check-report
           /opt/dependency-check/bin/dependency-check.sh \
             --project "MERN Project" \
             --scan "./mern/" \
             --format "ALL" \
             --out "dependency-check-report" \
-            --failOnCVSS 7
+            --failOnCVSS 7 \
+            --enableExperimental
 
       # Installer Snyk CLI avec sécurisation
       - name: Install Snyk CLI

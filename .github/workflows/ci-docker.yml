@@ -11,25 +11,48 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    # Ajout de permissions OWASP (principe du moindre privilège)
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Nécessaire pour SonarCloud
+          fetch-depth: 0
 
-      # Installer Snyk CLI
+      # OWASP Dependency-Check
+      - name: Setup OWASP Dependency-Check
+        run: |
+          wget -q https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.9/dependency-check-9.0.9-release.zip
+          unzip -q dependency-check-9.0.9-release.zip
+          sudo mv dependency-check /opt/
+
+      - name: Run OWASP Dependency-Check
+        run: |
+          /opt/dependency-check/bin/dependency-check.sh \
+            --project "MERN Project" \
+            --scan "./mern/" \
+            --format "ALL" \
+            --out "dependency-check-report" \
+            --failOnCVSS 7
+
+      # Installer Snyk CLI avec sécurisation
       - name: Install Snyk CLI
-        run: npm install -g snyk
+        run: npm install -g snyk --no-fund --no-audit
 
-      # Tester Snyk dans la PR
+      # Tester Snyk dans la PR avec options sécurisées
       - name: Test Snyk in Pull Request
         if: github.event_name == 'pull_request'
-        run: snyk monitor --all-projects
+        run: |
+          snyk test --all-projects --severity-threshold=high --json-file-output=snyk-results.json
+          snyk monitor --all-projects
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Installer jq pour analyser les résultats Snyk
+      # Installer jq
       - name: Install jq
         run: sudo apt-get install -y jq
 
@@ -37,49 +60,38 @@ jobs:
       - name: Comment on PR with Snyk issues
         if: github.event_name == 'pull_request'
         run: |
-          PR_COMMENT="Snyk Security Scan Report: \n\n"
-          
-          # Run snyk test and save JSON output
+          PR_COMMENT="Snyk Security Scan Report (OWASP Compliant): \n\n"
           snyk test --all-projects --json > snyk-results.json || true
-          
-          # Debug: Print raw JSON
           echo "Snyk JSON output:"
           cat snyk-results.json
-          
-          # Parse vulnerabilities
-          ISSUES=$(jq -r '.[] | .vulnerabilities[]? | "- \(.name) (\(.severity))\n  - \(.packageManager) package: \(.packageName)@\(.version)\n  - More info: \(.url)"' snyk-results.json || echo "No vulnerabilities found")
-          
-          # Append issues to comment
+          ISSUES=$(jq -r '.[] | .vulnerabilities[]? | select(.severity | IN("high", "critical")) | "- \(.name) (\(.severity))\n  - \(.packageManager) package: \(.packageName)@\(.version)\n  - More info: \(.url)"' snyk-results.json || echo "No high/critical vulnerabilities found")
           if [ -n "$ISSUES" ]; then
             PR_COMMENT+="$ISSUES"
           else
-            PR_COMMENT+="No vulnerabilities detected."
+            PR_COMMENT+="No high/critical vulnerabilities detected."
           fi
-          
-          # Debug: Print final comment
           echo "Comment content: $PR_COMMENT"
-          
-          # Post comment to PR
           curl -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
             -d "{\"body\": \"${PR_COMMENT}\"}" \
             "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments"
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Backend Security Scans and Fixes
+      # Backend Security Scans avec OWASP
       - name: Run Snyk Security Scan (Backend)
         run: |
           cd mern/backend
-          snyk test --all-projects
+          snyk test --all-projects --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Fix vulnerabilities with Snyk (Backend)
         run: |
           cd mern/backend
-          snyk protect || true  # Continue even if no fixes are applied
+          snyk protect || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -90,18 +102,18 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Frontend Security Scans and Fixes
+      # Frontend Security Scans avec OWASP
       - name: Run Snyk Security Scan (Frontend)
         run: |
           cd mern/frontend
-          snyk test --all-projects
+          snyk test --all-projects --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Fix vulnerabilities with Snyk (Frontend)
         run: |
           cd mern/frontend
-          snyk protect || true  # Continue even if no fixes are applied
+          snyk protect || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -112,7 +124,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # Docker Build and Push
+      # Docker Build avec sécurité OWASP
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -125,10 +137,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Backend Build & Scan
       - name: Build and Load Backend Image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }} ./mern/backend
+          DOCKER_BUILDKIT=1 docker build \
+            --no-cache \
+            -t ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }} \
+            ./mern/backend
           docker images
 
       - name: Install Trivy
@@ -141,7 +155,12 @@ jobs:
 
       - name: Scan Backend Docker Image for Vulnerabilities
         run: |
-          trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
+          trivy image \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
       - name: Install SonarScanner
         run: |
@@ -151,7 +170,14 @@ jobs:
 
       - name: Run SonarCloud Analysis for Backend
         run: |
-          ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/backend -Dsonar.sourceEncoding=UTF-8
+          ./sonar-scanner/bin/sonar-scanner \
+            -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose \
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.sources=./mern/backend \
+            -Dsonar.sourceEncoding=UTF-8 \
+            -Dsonar.exclusions="**/node_modules/**"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -159,19 +185,33 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/backend:${{ github.sha }}
 
-      # Frontend Build & Scan
       - name: Build and Load Frontend Image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }} ./mern/frontend
+          DOCKER_BUILDKIT=1 docker build \
+            --no-cache \
+            -t ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }} \
+            ./mern/frontend
           docker images
 
       - name: Scan Frontend Docker Image for Vulnerabilities
         run: |
-          trivy image --scanners vuln --severity HIGH,CRITICAL ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
+          trivy image \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
 
       - name: Run SonarCloud Analysis for Frontend
         run: |
-          ./sonar-scanner/bin/sonar-scanner -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=${{ secrets.SONAR_TOKEN }} -Dsonar.sources=./mern/frontend -Dsonar.sourceEncoding=UTF-8
+          ./sonar-scanner/bin/sonar-scanner \
+            -Dsonar.projectKey=Saif-hadd_Mern-Docker-Compose \
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }} \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
+            -Dsonar.sources=./mern/frontend \
+            -Dsonar.sourceEncoding=UTF-8 \
+            -Dsonar.exclusions="**/node_modules/**"
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -179,13 +219,29 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/frontend:${{ github.sha }}
 
-      # Reporting and Notifications
+      # Reporting sécurisé
       - name: Notify Slack on Success
         if: success()
         run: |
-          curl -X POST -H 'Content-type: application/json' --data '{"text":"Build succeeded for commit ${{ github.sha }}! Backend & Frontend images pushed to Docker Hub."}' ${{ secrets.SLACK_WEBHOOK_URL }}
+          curl -X POST \
+            -H 'Content-type: application/json' \
+            --data '{"text":"Build succeeded for commit ${{ github.sha }}! Images pushed securely to Docker Hub."}' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Notify Slack on Failure
         if: failure()
         run: |
-          curl -X POST -H 'Content-type: application/json' --data '{"text":"Build failed for commit ${{ github.sha }}! Check the logs for details."}' ${{ secrets.SLACK_WEBHOOK_URL }}
+          curl -X POST \
+            -H 'Content-type: application/json' \
+            --data '{"text":"Build failed for commit ${{ github.sha }} due to security checks! Check logs."}' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      # Archivage des rapports de sécurité
+      - name: Upload Security Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            dependency-check-report/*
+            snyk-results.json

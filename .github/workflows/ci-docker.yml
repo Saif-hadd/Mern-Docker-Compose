@@ -248,4 +248,4 @@ jobs:
           name: security-reports
           path: |
             dependency-check-report/*
-            snyk-results.json
+            snyk-results.json    
